@@ -30,7 +30,10 @@ public sealed class TokenEndpoint(ValidateTokenRequestQueryHandler handler)
             clientId = form["client_id"].ToString();
             clientSecret = form["client_secret"].ToString();
             serverId = form["server_id"].ToString();
-            scope = form["scope"].ToString();
+            var scopeValues = form["scope"];
+            scope = scopeValues.Count > 1
+                ? string.Join(" ", scopeValues!)
+                : scopeValues.ToString();
         }
 
         if (string.IsNullOrWhiteSpace(grantType) || grantType != "client_credentials")
@@ -40,8 +43,9 @@ public sealed class TokenEndpoint(ValidateTokenRequestQueryHandler handler)
         }
 
         // Extract credentials from Basic auth header if not in body
+        var authMethod = "client_secret_post";
         var authHeader = HttpContext.Request.Headers.Authorization.ToString();
-        if (string.IsNullOrWhiteSpace(clientId) && !string.IsNullOrWhiteSpace(authHeader) &&
+        if (!string.IsNullOrWhiteSpace(authHeader) &&
             authHeader.StartsWith("Basic ", StringComparison.OrdinalIgnoreCase))
         {
             var decoded = Encoding.UTF8.GetString(
@@ -51,6 +55,7 @@ public sealed class TokenEndpoint(ValidateTokenRequestQueryHandler handler)
             {
                 clientId = parts[0];
                 clientSecret = parts[1];
+                authMethod = "client_secret_basic";
             }
         }
 
@@ -70,7 +75,7 @@ public sealed class TokenEndpoint(ValidateTokenRequestQueryHandler handler)
             ? null
             : scope.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
-        var result = await handler.HandleAsync(new ValidateTokenRequestQuery(clientId, clientSecret, serverIdGuid, scopes), ct);
+        var result = await handler.HandleAsync(new ValidateTokenRequestQuery(clientId, clientSecret, serverIdGuid, scopes, authMethod), ct);
 
         if (!result.IsAuthorized)
         {

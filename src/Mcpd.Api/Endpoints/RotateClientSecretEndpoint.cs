@@ -4,27 +4,24 @@ using Mcpd.Application.Commands;
 
 namespace Mcpd.Api.Endpoints;
 
-public sealed class RotateClientSecretRequest
-{
-    public string ClientId { get; set; } = string.Empty;
-}
-
 public sealed class RotateClientSecretEndpoint(RotateClientSecretCommandHandler handler)
-    : Endpoint<RotateClientSecretRequest>
+    : EndpointWithoutRequest
 {
     public override void Configure()
     {
         Post("/admin/clients/{clientId}/rotate-secret");
         AllowAnonymous();
-        PreProcessor<AdminApiKeyPreProcessor<RotateClientSecretRequest>>();
+        PreProcessor<AdminApiKeyPreProcessor<EmptyRequest>>();
         Description(x => x.WithName("RotateClientSecret"));
     }
 
-    public override async Task HandleAsync(RotateClientSecretRequest req, CancellationToken ct)
+    public override async Task HandleAsync(CancellationToken ct)
     {
+        var clientId = Route<string>("clientId");
+
         try
         {
-            var result = await handler.HandleAsync(new RotateClientSecretCommand(req.ClientId), ct);
+            var result = await handler.HandleAsync(new RotateClientSecretCommand(clientId!), ct);
             await SendOkAsync(result, ct);
         }
         catch (InvalidOperationException ex)

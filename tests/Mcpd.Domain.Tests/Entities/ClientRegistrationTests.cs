@@ -60,12 +60,12 @@ public sealed class ClientRegistrationTests
     {
         var reg = CreateActiveRegistration();
 
-        reg.UpdateMetadata("New Name", ["https://new.com/cb"], "client_secret_basic", ["authorization_code"]);
+        reg.UpdateMetadata("New Name", ["https://new.com/cb"], "client_secret_basic", ["client_credentials"]);
 
         reg.ClientName.Should().Be("New Name");
         reg.RedirectUris.Should().ContainSingle("https://new.com/cb");
         reg.TokenEndpointAuthMethod.Should().Be("client_secret_basic");
-        reg.GrantTypes.Should().ContainSingle("authorization_code");
+        reg.GrantTypes.Should().ContainSingle("client_credentials");
     }
 
     private static ClientRegistration CreateActiveRegistration() =>

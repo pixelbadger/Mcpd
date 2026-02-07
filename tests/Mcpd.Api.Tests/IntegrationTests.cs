@@ -252,6 +252,143 @@ public sealed class IntegrationTests : IClassFixture<WebApplicationFactory<Progr
     }
 
     [Fact]
+    public async Task GetRegistration_AfterRevoke_Returns401()
+    {
+        var serverId = GetServerId("code-assist");
+
+        var regPayload = new
+        {
+            client_name = "Revoke RAT Test Client",
+            redirect_uris = new[] { "https://app.contoso.com/oauth/callback" },
+            grant_types = new[] { "client_credentials" },
+            token_endpoint_auth_method = "client_secret_post",
+            requested_server_ids = new[] { serverId },
+            requested_scopes = new Dictionary<string, string[]>()
+        };
+
+        var regResponse = await _client.PostAsJsonAsync("/oauth/register", regPayload, JsonOptions);
+        var regBody = await regResponse.Content.ReadFromJsonAsync<JsonDocument>();
+        var clientId = regBody!.RootElement.GetProperty("client_id").GetString()!;
+        var rat = regBody.RootElement.GetProperty("registration_access_token").GetString()!;
+
+        // Delete (revoke) the client
+        var deleteRequest = new HttpRequestMessage(HttpMethod.Delete, $"/oauth/register/{clientId}");
+        deleteRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", rat);
+        var deleteResponse = await _client.SendAsync(deleteRequest);
+        deleteResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        // GET with same RAT should now return 401
+        var getRequest = new HttpRequestMessage(HttpMethod.Get, $"/oauth/register/{clientId}");
+        getRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", rat);
+        var getResponse = await _client.SendAsync(getRequest);
+        getResponse.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task TokenRequest_MultipleScopeParams_Succeeds()
+    {
+        var serverId = GetServerId("code-assist");
+
+        var regPayload = new
+        {
+            client_name = "Multi Scope Test Client",
+            redirect_uris = new[] { "https://app.contoso.com/oauth/callback" },
+            grant_types = new[] { "client_credentials" },
+            token_endpoint_auth_method = "client_secret_post",
+            requested_server_ids = new[] { serverId },
+            requested_scopes = new Dictionary<string, string[]>
+            {
+                [serverId.ToString()] = ["read", "write"]
+            }
+        };
+
+        var regResponse = await _client.PostAsJsonAsync("/oauth/register", regPayload, JsonOptions);
+        var regBody = await regResponse.Content.ReadFromJsonAsync<JsonDocument>();
+        var clientId = regBody!.RootElement.GetProperty("client_id").GetString()!;
+        var clientSecret = regBody.RootElement.GetProperty("client_secret").GetString()!;
+
+        // Send multiple scope params (not space-separated)
+        var content = new FormUrlEncodedContent(new[]
+        {
+            new KeyValuePair<string, string>("grant_type", "client_credentials"),
+            new KeyValuePair<string, string>("client_id", clientId),
+            new KeyValuePair<string, string>("client_secret", clientSecret),
+            new KeyValuePair<string, string>("server_id", serverId.ToString()),
+            new KeyValuePair<string, string>("scope", "read"),
+            new KeyValuePair<string, string>("scope", "write"),
+        });
+
+        var tokenResponse = await _client.PostAsync("/oauth/token", content);
+        tokenResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task TokenRequest_WrongAuthMethod_Returns401()
+    {
+        var serverId = GetServerId("code-assist");
+
+        // Register with client_secret_post
+        var regPayload = new
+        {
+            client_name = "Auth Method Test Client",
+            redirect_uris = new[] { "https://app.contoso.com/oauth/callback" },
+            grant_types = new[] { "client_credentials" },
+            token_endpoint_auth_method = "client_secret_post",
+            requested_server_ids = new[] { serverId },
+            requested_scopes = new Dictionary<string, string[]>()
+        };
+
+        var regResponse = await _client.PostAsJsonAsync("/oauth/register", regPayload, JsonOptions);
+        var regBody = await regResponse.Content.ReadFromJsonAsync<JsonDocument>();
+        var clientId = regBody!.RootElement.GetProperty("client_id").GetString()!;
+        var clientSecret = regBody.RootElement.GetProperty("client_secret").GetString()!;
+
+        // Authenticate via Basic auth (wrong method for this client)
+        var credentials = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"{clientId}:{clientSecret}"));
+        var content = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["grant_type"] = "client_credentials",
+            ["server_id"] = serverId.ToString()
+        });
+
+        var request = new HttpRequestMessage(HttpMethod.Post, "/oauth/token") { Content = content };
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", credentials);
+
+        var tokenResponse = await _client.SendAsync(request);
+        tokenResponse.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task RotateSecret_WithoutBody_Succeeds()
+    {
+        var serverId = GetServerId("code-assist");
+
+        var regPayload = new
+        {
+            client_name = "Rotate No Body Test Client",
+            redirect_uris = new[] { "https://app.contoso.com/oauth/callback" },
+            grant_types = new[] { "client_credentials" },
+            token_endpoint_auth_method = "client_secret_post",
+            requested_server_ids = new[] { serverId },
+            requested_scopes = new Dictionary<string, string[]>()
+        };
+
+        var regResponse = await _client.PostAsJsonAsync("/oauth/register", regPayload, JsonOptions);
+        var regBody = await regResponse.Content.ReadFromJsonAsync<JsonDocument>();
+        var clientId = regBody!.RootElement.GetProperty("client_id").GetString()!;
+
+        // POST with only admin key header, no body at all
+        var rotateRequest = new HttpRequestMessage(HttpMethod.Post, $"/oauth/admin/clients/{clientId}/rotate-secret");
+        rotateRequest.Headers.Add("X-Admin-Key", "admin-api-key-change-in-production");
+
+        var rotateResponse = await _client.SendAsync(rotateRequest);
+        rotateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var rotateBody = await rotateResponse.Content.ReadFromJsonAsync<JsonDocument>();
+        rotateBody!.RootElement.GetProperty("client_secret").GetString().Should().NotBeNullOrWhiteSpace();
+    }
+
+    [Fact]
     public async Task SecretRotation_InvalidatesOldSecret()
     {
         var serverId = GetServerId("code-assist");
@@ -275,10 +412,9 @@ public sealed class IntegrationTests : IClassFixture<WebApplicationFactory<Progr
         var clientId = regBody!.RootElement.GetProperty("client_id").GetString()!;
         var oldSecret = regBody.RootElement.GetProperty("client_secret").GetString()!;
 
-        // Rotate secret via admin endpoint
+        // Rotate secret via admin endpoint (no body required)
         var rotateRequest = new HttpRequestMessage(HttpMethod.Post, $"/oauth/admin/clients/{clientId}/rotate-secret");
         rotateRequest.Headers.Add("X-Admin-Key", "admin-api-key-change-in-production");
-        rotateRequest.Content = new StringContent("{}", System.Text.Encoding.UTF8, "application/json");
 
         var rotateResponse = await _client.SendAsync(rotateRequest);
         rotateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
