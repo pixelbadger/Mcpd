@@ -1,5 +1,6 @@
 using FastEndpoints;
 using Mcpd.Application.Interfaces;
+using Mcpd.Domain.Enums;
 using Mcpd.Domain.Interfaces;
 using Mcpd.Domain.ValueObjects;
 
@@ -37,7 +38,7 @@ public sealed class RegistrationAccessTokenPreProcessor<TRequest> : IPreProcesso
         var secretHasher = ctx.HttpContext.RequestServices.GetRequiredService<ISecretHasher>();
 
         var registration = await clientRepo.GetByClientIdAsync(clientId, ct);
-        if (registration?.RegistrationAccessToken is null)
+        if (registration?.RegistrationAccessToken is null || registration.Status != ClientStatus.Active)
         {
             await ctx.HttpContext.Response.SendUnauthorizedAsync(ct);
             return;

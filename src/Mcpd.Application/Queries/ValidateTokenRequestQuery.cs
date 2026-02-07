@@ -10,7 +10,8 @@ public sealed record ValidateTokenRequestQuery(
     string ClientId,
     string ClientSecret,
     Guid ServerId,
-    string[]? RequestedScopes);
+    string[]? RequestedScopes,
+    string AuthMethod);
 
 public sealed record TokenValidationResult(
     bool IsAuthorized,
@@ -27,14 +28,24 @@ public sealed class ValidateTokenRequestQueryHandler(
     ISecretHasher secretHasher,
     ITokenGenerator tokenGenerator)
 {
+    private static readonly HashedSecret DummyHash = new(
+        "$argon2id$AAAAAAAAAAAAAAAAAAAAAA==$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
+
     public async Task<TokenValidationResult> HandleAsync(ValidateTokenRequestQuery query, CancellationToken ct)
     {
         // Step 1: Verify client exists and is Active
         var registration = await clientRepo.GetByClientIdAsync(query.ClientId, ct);
         if (registration is null || registration.Status != ClientStatus.Active)
+        {
+            secretHasher.Verify("dummy", DummyHash);
             return Fail("invalid_client", "Client not found or inactive.");
+        }
 
-        // Step 2: Verify secret against stored Argon2id hash
+        // Step 2: Verify auth method matches registered method
+        if (!string.Equals(registration.TokenEndpointAuthMethod, query.AuthMethod, StringComparison.Ordinal))
+            return Fail("invalid_client", "Authentication method does not match registered method.");
+
+        // Step 3: Verify secret against stored Argon2id hash
         if (!secretHasher.Verify(query.ClientSecret, new HashedSecret(registration.ClientSecretHash)))
             return Fail("invalid_client", "Invalid client credentials.");
 

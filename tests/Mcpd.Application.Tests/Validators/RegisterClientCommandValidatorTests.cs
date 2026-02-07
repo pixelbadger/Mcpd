@@ -91,6 +91,26 @@ public sealed class RegisterClientCommandValidatorTests
     }
 
     [Fact]
+    public void AuthorizationCode_GrantType_Fails()
+    {
+        var command = CreateValidCommand() with { GrantTypes = ["authorization_code"] };
+        var result = _validator.Validate(command);
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.PropertyName == "GrantTypes");
+    }
+
+    [Theory]
+    [InlineData("test\0client")]
+    [InlineData("test\nclient")]
+    public void ControlCharacters_InClientName_Fails(string name)
+    {
+        var command = CreateValidCommand() with { ClientName = name };
+        var result = _validator.Validate(command);
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.PropertyName == "ClientName");
+    }
+
+    [Fact]
     public void Invalid_AuthMethod_Fails()
     {
         var command = CreateValidCommand() with { TokenEndpointAuthMethod = "private_key_jwt" };

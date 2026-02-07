@@ -5,7 +5,7 @@ namespace Mcpd.Application.Validators;
 
 public sealed class RegisterClientCommandValidator : AbstractValidator<RegisterClientCommand>
 {
-    private static readonly string[] AllowedGrantTypes = ["client_credentials", "authorization_code"];
+    private static readonly string[] AllowedGrantTypes = ["client_credentials"];
     private static readonly string[] AllowedAuthMethods = ["client_secret_post", "client_secret_basic"];
 
     public RegisterClientCommandValidator()
@@ -13,6 +13,11 @@ public sealed class RegisterClientCommandValidator : AbstractValidator<RegisterC
         RuleFor(x => x.ClientName)
             .NotEmpty().WithMessage("client_name is required.")
             .MaximumLength(256).WithMessage("client_name must not exceed 256 characters.");
+
+        RuleFor(x => x.ClientName)
+            .Must(name => !name.Any(c => char.IsControl(c)))
+            .WithMessage("client_name must not contain control characters.")
+            .When(x => !string.IsNullOrEmpty(x.ClientName));
 
         RuleFor(x => x.RequestedServerIds)
             .NotEmpty().WithMessage("At least one server_id is required.");
