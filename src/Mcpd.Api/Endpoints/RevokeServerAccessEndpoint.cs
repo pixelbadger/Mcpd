@@ -1,6 +1,7 @@
 using FastEndpoints;
 using Mcpd.Api.PreProcessors;
 using Mcpd.Application.Commands;
+using Mediator;
 
 namespace Mcpd.Api.Endpoints;
 
@@ -10,7 +11,7 @@ public sealed class RevokeServerAccessRequest
     public string ClientId { get; set; } = string.Empty;
 }
 
-public sealed class RevokeServerAccessEndpoint(RevokeServerAccessCommandHandler handler)
+public sealed class RevokeServerAccessEndpoint(IMediator mediator)
     : Endpoint<RevokeServerAccessRequest>
 {
     public override void Configure()
@@ -25,7 +26,7 @@ public sealed class RevokeServerAccessEndpoint(RevokeServerAccessCommandHandler 
     {
         try
         {
-            await handler.HandleAsync(new RevokeServerAccessCommand(req.ServerId, req.ClientId), ct);
+            await mediator.Send(new RevokeServerAccessCommand(req.ServerId, req.ClientId), ct);
             await SendNoContentAsync(ct);
         }
         catch (InvalidOperationException ex)

@@ -2,6 +2,7 @@ using Mcpd.Application.Contracts;
 using Mcpd.Application.Interfaces;
 using Mcpd.Domain.Entities;
 using Mcpd.Domain.Interfaces;
+using Mediator;
 
 namespace Mcpd.Application.Commands;
 
@@ -12,16 +13,16 @@ public sealed record UpdateClientCommand(
     string[] GrantTypes,
     string TokenEndpointAuthMethod,
     Guid[]? AdditionalServerIds,
-    Dictionary<Guid, string[]>? AdditionalScopes);
+    Dictionary<Guid, string[]>? AdditionalScopes) : ICommand<ClientRegistrationResponse>;
 
 public sealed class UpdateClientCommandHandler(
     IClientRegistrationRepository clientRepo,
     IMcpServerRepository serverRepo,
     IClientServerGrantRepository grantRepo,
     ICallbackValidator callbackValidator,
-    IAuditLogRepository auditRepo)
+    IAuditLogRepository auditRepo) : ICommandHandler<UpdateClientCommand, ClientRegistrationResponse>
 {
-    public async Task<ClientRegistrationResponse> HandleAsync(UpdateClientCommand command, CancellationToken ct)
+    public async ValueTask<ClientRegistrationResponse> Handle(UpdateClientCommand command, CancellationToken ct)
     {
         var registration = await clientRepo.GetByClientIdAsync(command.ClientId, ct)
             ?? throw new InvalidOperationException("Client not found.");

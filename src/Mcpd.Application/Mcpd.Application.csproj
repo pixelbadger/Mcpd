@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <PackageReference Include="FluentValidation" Version="11.*" />
+    <PackageReference Include="Mediator.Abstractions" Version="3.0.*" />
   </ItemGroup>
 
 </Project>

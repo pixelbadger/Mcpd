@@ -1,16 +1,17 @@
 using Mcpd.Domain.Entities;
 using Mcpd.Domain.Interfaces;
+using Mediator;
 
 namespace Mcpd.Application.Commands;
 
-public sealed record RevokeServerAccessCommand(Guid ServerId, string ClientId);
+public sealed record RevokeServerAccessCommand(Guid ServerId, string ClientId) : ICommand;
 
 public sealed class RevokeServerAccessCommandHandler(
     IClientRegistrationRepository clientRepo,
     IClientServerGrantRepository grantRepo,
-    IAuditLogRepository auditRepo)
+    IAuditLogRepository auditRepo) : ICommandHandler<RevokeServerAccessCommand>
 {
-    public async Task HandleAsync(RevokeServerAccessCommand command, CancellationToken ct)
+    public async ValueTask<Unit> Handle(RevokeServerAccessCommand command, CancellationToken ct)
     {
         var registration = await clientRepo.GetByClientIdAsync(command.ClientId, ct)
             ?? throw new InvalidOperationException("Client not found.");
@@ -24,5 +25,7 @@ public sealed class RevokeServerAccessCommandHandler(
         await auditRepo.AddAsync(new AuditLogEntry(
             "ServerAccessRevoked", command.ClientId, registration.Id, command.ServerId,
             "Server access revoked"), ct);
+
+        return Unit.Value;
     }
 }

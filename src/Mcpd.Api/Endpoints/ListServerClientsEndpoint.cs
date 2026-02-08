@@ -1,6 +1,7 @@
 using FastEndpoints;
 using Mcpd.Api.PreProcessors;
 using Mcpd.Application.Queries;
+using Mediator;
 
 namespace Mcpd.Api.Endpoints;
 
@@ -9,7 +10,7 @@ public sealed class ListServerClientsRequest
     public Guid ServerId { get; set; }
 }
 
-public sealed class ListServerClientsEndpoint(ListServerClientsQueryHandler handler)
+public sealed class ListServerClientsEndpoint(IMediator mediator)
     : Endpoint<ListServerClientsRequest>
 {
     public override void Configure()
@@ -22,7 +23,7 @@ public sealed class ListServerClientsEndpoint(ListServerClientsQueryHandler hand
 
     public override async Task HandleAsync(ListServerClientsRequest req, CancellationToken ct)
     {
-        var result = await handler.HandleAsync(new ListServerClientsQuery(req.ServerId), ct);
+        var result = await mediator.Send(new ListServerClientsQuery(req.ServerId), ct);
         await SendAsync(result, cancellation: ct);
     }
 }

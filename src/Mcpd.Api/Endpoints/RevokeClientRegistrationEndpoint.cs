@@ -1,6 +1,7 @@
 using FastEndpoints;
 using Mcpd.Api.PreProcessors;
 using Mcpd.Application.Commands;
+using Mediator;
 
 namespace Mcpd.Api.Endpoints;
 
@@ -9,7 +10,7 @@ public sealed class RevokeClientRegistrationRequest
     public string ClientId { get; set; } = string.Empty;
 }
 
-public sealed class RevokeClientRegistrationEndpoint(RevokeClientCommandHandler handler)
+public sealed class RevokeClientRegistrationEndpoint(IMediator mediator)
     : Endpoint<RevokeClientRegistrationRequest>
 {
     public override void Configure()
@@ -24,7 +25,7 @@ public sealed class RevokeClientRegistrationEndpoint(RevokeClientCommandHandler 
     {
         try
         {
-            await handler.HandleAsync(new RevokeClientCommand(req.ClientId), ct);
+            await mediator.Send(new RevokeClientCommand(req.ClientId), ct);
             await SendNoContentAsync(ct);
         }
         catch (InvalidOperationException ex)

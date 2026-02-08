@@ -1,15 +1,14 @@
 using System.Text.Json;
 using System.Threading.RateLimiting;
 using FastEndpoints;
-using Mcpd.Application.Commands;
 using Mcpd.Application.Interfaces;
-using Mcpd.Application.Queries;
 using Mcpd.Domain.Interfaces;
 using Mcpd.Infrastructure.Configuration;
 using Mcpd.Infrastructure.Persistence;
 using Mcpd.Infrastructure.Persistence.Repositories;
 using Mcpd.Infrastructure.Seeding;
 using Mcpd.Infrastructure.Services;
+using Mediator;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -34,19 +33,11 @@ builder.Services.AddSingleton<ISecretHasher, Argon2SecretHasher>();
 builder.Services.AddSingleton<ITokenGenerator, JwtTokenGenerator>();
 builder.Services.AddScoped<ICallbackValidator, CallbackValidator>();
 
-// Command handlers
-builder.Services.AddScoped<RegisterClientCommandHandler>();
-builder.Services.AddScoped<UpdateClientCommandHandler>();
-builder.Services.AddScoped<RotateClientSecretCommandHandler>();
-builder.Services.AddScoped<RevokeClientCommandHandler>();
-builder.Services.AddScoped<GrantServerAccessCommandHandler>();
-builder.Services.AddScoped<RevokeServerAccessCommandHandler>();
-
-// Query handlers
-builder.Services.AddScoped<GetClientRegistrationQueryHandler>();
-builder.Services.AddScoped<ValidateTokenRequestQueryHandler>();
-builder.Services.AddScoped<ListMcpServersQueryHandler>();
-builder.Services.AddScoped<ListServerClientsQueryHandler>();
+// Mediator (source-generated handler discovery)
+builder.Services.AddMediator(options =>
+{
+    options.ServiceLifetime = ServiceLifetime.Scoped;
+});
 
 // Seeder
 builder.Services.AddScoped<DatabaseSeeder>();

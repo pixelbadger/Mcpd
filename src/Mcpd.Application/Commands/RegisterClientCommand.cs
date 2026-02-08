@@ -3,6 +3,7 @@ using Mcpd.Application.Interfaces;
 using Mcpd.Domain.Entities;
 using Mcpd.Domain.Interfaces;
 using Mcpd.Domain.ValueObjects;
+using Mediator;
 
 namespace Mcpd.Application.Commands;
 
@@ -12,7 +13,7 @@ public sealed record RegisterClientCommand(
     string[] GrantTypes,
     string TokenEndpointAuthMethod,
     Guid[] RequestedServerIds,
-    Dictionary<Guid, string[]> RequestedScopes);
+    Dictionary<Guid, string[]> RequestedScopes) : ICommand<ClientRegistrationResponse>;
 
 public sealed class RegisterClientCommandHandler(
     IClientRegistrationRepository clientRepo,
@@ -21,9 +22,9 @@ public sealed class RegisterClientCommandHandler(
     ICallbackValidator callbackValidator,
     ISecretHasher secretHasher,
     ITokenGenerator tokenGenerator,
-    IAuditLogRepository auditRepo)
+    IAuditLogRepository auditRepo) : ICommandHandler<RegisterClientCommand, ClientRegistrationResponse>
 {
-    public async Task<ClientRegistrationResponse> HandleAsync(RegisterClientCommand command, CancellationToken ct)
+    public async ValueTask<ClientRegistrationResponse> Handle(RegisterClientCommand command, CancellationToken ct)
     {
         // Validate all requested servers exist and are active
         var servers = new List<McpServer>();

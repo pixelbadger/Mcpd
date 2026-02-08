@@ -1,10 +1,11 @@
 using Mcpd.Application.Interfaces;
 using Mcpd.Domain.Entities;
 using Mcpd.Domain.Interfaces;
+using Mediator;
 
 namespace Mcpd.Application.Commands;
 
-public sealed record RotateClientSecretCommand(string ClientId);
+public sealed record RotateClientSecretCommand(string ClientId) : ICommand<RotateClientSecretResponse>;
 
 public sealed record RotateClientSecretResponse(string ClientSecret, DateTimeOffset? ClientSecretExpiresAt);
 
@@ -12,9 +13,9 @@ public sealed class RotateClientSecretCommandHandler(
     IClientRegistrationRepository clientRepo,
     ISecretHasher secretHasher,
     ITokenGenerator tokenGenerator,
-    IAuditLogRepository auditRepo)
+    IAuditLogRepository auditRepo) : ICommandHandler<RotateClientSecretCommand, RotateClientSecretResponse>
 {
-    public async Task<RotateClientSecretResponse> HandleAsync(RotateClientSecretCommand command, CancellationToken ct)
+    public async ValueTask<RotateClientSecretResponse> Handle(RotateClientSecretCommand command, CancellationToken ct)
     {
         var registration = await clientRepo.GetByClientIdAsync(command.ClientId, ct)
             ?? throw new InvalidOperationException("Client not found.");

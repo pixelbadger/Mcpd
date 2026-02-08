@@ -1,16 +1,17 @@
 using Mcpd.Application.Contracts;
 using Mcpd.Domain.Interfaces;
+using Mediator;
 
 namespace Mcpd.Application.Queries;
 
-public sealed record GetClientRegistrationQuery(string ClientId);
+public sealed record GetClientRegistrationQuery(string ClientId) : IQuery<ClientRegistrationResponse?>;
 
 public sealed class GetClientRegistrationQueryHandler(
     IClientRegistrationRepository clientRepo,
     IClientServerGrantRepository grantRepo,
-    IMcpServerRepository serverRepo)
+    IMcpServerRepository serverRepo) : IQueryHandler<GetClientRegistrationQuery, ClientRegistrationResponse?>
 {
-    public async Task<ClientRegistrationResponse?> HandleAsync(GetClientRegistrationQuery query, CancellationToken ct)
+    public async ValueTask<ClientRegistrationResponse?> Handle(GetClientRegistrationQuery query, CancellationToken ct)
     {
         var registration = await clientRepo.GetByClientIdAsync(query.ClientId, ct);
         if (registration is null) return null;
