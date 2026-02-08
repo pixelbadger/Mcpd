@@ -3,10 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using FluentAssertions;
-using Mcpd.Domain.Entities;
-using Mcpd.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace Mcpd.Api.Tests;
@@ -14,7 +11,6 @@ namespace Mcpd.Api.Tests;
 public sealed class IntegrationTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly HttpClient _client;
-    private readonly WebApplicationFactory<Program> _factory;
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
@@ -23,34 +19,19 @@ public sealed class IntegrationTests : IClassFixture<WebApplicationFactory<Progr
 
     public IntegrationTests(WebApplicationFactory<Program> factory)
     {
-        _factory = factory;
         _client = factory.CreateClient();
-    }
-
-    private Guid GetServerId(string serverName)
-    {
-        using var scope = _factory.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<McpdDbContext>();
-        return db.McpServers.First(s => s.Name == serverName).Id;
     }
 
     [Fact]
     public async Task FullRegistration_AndTokenFlow()
     {
-        var serverId = GetServerId("code-assist");
-
-        // Register client
         var regPayload = new
         {
             client_name = "Integration Test Client",
             redirect_uris = new[] { "https://app.contoso.com/oauth/callback" },
             grant_types = new[] { "client_credentials" },
             token_endpoint_auth_method = "client_secret_post",
-            requested_server_ids = new[] { serverId },
-            requested_scopes = new Dictionary<string, string[]>
-            {
-                [serverId.ToString()] = ["read", "write"]
-            }
+            scope = new[] { "read", "write" }
         };
 
         var regResponse = await _client.PostAsJsonAsync("/oauth/register", regPayload, JsonOptions);
@@ -65,13 +46,12 @@ public sealed class IntegrationTests : IClassFixture<WebApplicationFactory<Progr
         clientSecret.Should().NotBeNullOrWhiteSpace();
         rat.Should().NotBeNullOrWhiteSpace();
 
-        // Get token for granted server
+        // Get token
         var tokenPayload = new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["grant_type"] = "client_credentials",
             ["client_id"] = clientId,
             ["client_secret"] = clientSecret,
-            ["server_id"] = serverId.ToString(),
             ["scope"] = "read"
         });
 
@@ -84,58 +64,15 @@ public sealed class IntegrationTests : IClassFixture<WebApplicationFactory<Progr
     }
 
     [Fact]
-    public async Task TokenRequest_WithoutGrant_Returns401()
-    {
-        var codeAssistId = GetServerId("code-assist");
-        var dataPipelineId = GetServerId("data-pipeline");
-
-        // Register client for code-assist only
-        var regPayload = new
-        {
-            client_name = "Single Server Client",
-            redirect_uris = new[] { "https://app.contoso.com/oauth/callback" },
-            grant_types = new[] { "client_credentials" },
-            token_endpoint_auth_method = "client_secret_post",
-            requested_server_ids = new[] { codeAssistId },
-            requested_scopes = new Dictionary<string, string[]>()
-        };
-
-        var regResponse = await _client.PostAsJsonAsync("/oauth/register", regPayload, JsonOptions);
-        regResponse.StatusCode.Should().Be(HttpStatusCode.Created);
-
-        var regBody = await regResponse.Content.ReadFromJsonAsync<JsonDocument>();
-        var clientId = regBody!.RootElement.GetProperty("client_id").GetString()!;
-        var clientSecret = regBody.RootElement.GetProperty("client_secret").GetString()!;
-
-        // Try to get token for data-pipeline (no grant)
-        var tokenPayload = new FormUrlEncodedContent(new Dictionary<string, string>
-        {
-            ["grant_type"] = "client_credentials",
-            ["client_id"] = clientId,
-            ["client_secret"] = clientSecret,
-            ["server_id"] = dataPipelineId.ToString()
-        });
-
-        var tokenResponse = await _client.PostAsync("/oauth/token", tokenPayload);
-        tokenResponse.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
-    }
-
-    [Fact]
     public async Task TokenRequest_ExcessScopes_Returns400()
     {
-        var serverId = GetServerId("code-assist");
-
         var regPayload = new
         {
             client_name = "Scope Test Client",
             redirect_uris = new[] { "https://app.contoso.com/oauth/callback" },
             grant_types = new[] { "client_credentials" },
             token_endpoint_auth_method = "client_secret_post",
-            requested_server_ids = new[] { serverId },
-            requested_scopes = new Dictionary<string, string[]>
-            {
-                [serverId.ToString()] = ["read"]
-            }
+            scope = new[] { "read" }
         };
 
         var regResponse = await _client.PostAsJsonAsync("/oauth/register", regPayload, JsonOptions);
@@ -143,13 +80,12 @@ public sealed class IntegrationTests : IClassFixture<WebApplicationFactory<Progr
         var clientId = regBody!.RootElement.GetProperty("client_id").GetString()!;
         var clientSecret = regBody.RootElement.GetProperty("client_secret").GetString()!;
 
-        // Request "write" scope which was not granted
+        // Request "write" scope which was not registered
         var tokenPayload = new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["grant_type"] = "client_credentials",
             ["client_id"] = clientId,
             ["client_secret"] = clientSecret,
-            ["server_id"] = serverId.ToString(),
             ["scope"] = "read write"
         });
 
@@ -160,16 +96,13 @@ public sealed class IntegrationTests : IClassFixture<WebApplicationFactory<Progr
     [Fact]
     public async Task GetRegistration_WithRAT_Succeeds()
     {
-        var serverId = GetServerId("code-assist");
-
         var regPayload = new
         {
             client_name = "RAT Test Client",
             redirect_uris = new[] { "https://app.contoso.com/oauth/callback" },
             grant_types = new[] { "client_credentials" },
             token_endpoint_auth_method = "client_secret_post",
-            requested_server_ids = new[] { serverId },
-            requested_scopes = new Dictionary<string, string[]>()
+            scope = new[] { "read" }
         };
 
         var regResponse = await _client.PostAsJsonAsync("/oauth/register", regPayload, JsonOptions);
@@ -196,21 +129,19 @@ public sealed class IntegrationTests : IClassFixture<WebApplicationFactory<Progr
     [Fact]
     public async Task DeleteRegistration_WithRAT_Succeeds()
     {
-        var serverId = GetServerId("code-assist");
-
         var regPayload = new
         {
             client_name = "Delete Test Client",
             redirect_uris = new[] { "https://app.contoso.com/oauth/callback" },
             grant_types = new[] { "client_credentials" },
             token_endpoint_auth_method = "client_secret_post",
-            requested_server_ids = new[] { serverId },
-            requested_scopes = new Dictionary<string, string[]>()
+            scope = new[] { "read" }
         };
 
         var regResponse = await _client.PostAsJsonAsync("/oauth/register", regPayload, JsonOptions);
         var regBody = await regResponse.Content.ReadFromJsonAsync<JsonDocument>();
         var clientId = regBody!.RootElement.GetProperty("client_id").GetString()!;
+        var clientSecret = regBody.RootElement.GetProperty("client_secret").GetString()!;
         var rat = regBody.RootElement.GetProperty("registration_access_token").GetString()!;
 
         var request = new HttpRequestMessage(HttpMethod.Delete, $"/oauth/register/{clientId}");
@@ -224,46 +155,22 @@ public sealed class IntegrationTests : IClassFixture<WebApplicationFactory<Progr
         {
             ["grant_type"] = "client_credentials",
             ["client_id"] = clientId,
-            ["client_secret"] = "any-secret",
-            ["server_id"] = serverId.ToString()
+            ["client_secret"] = clientSecret
         });
         var tokenResponse = await _client.PostAsync("/oauth/token", tokenPayload);
         tokenResponse.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
-    public async Task AdminEndpoints_RequireApiKey()
-    {
-        var response = await _client.GetAsync("/oauth/admin/servers");
-        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
-    }
-
-    [Fact]
-    public async Task AdminListServers_WithApiKey_Succeeds()
-    {
-        var request = new HttpRequestMessage(HttpMethod.Get, "/oauth/admin/servers");
-        request.Headers.Add("X-Admin-Key", "admin-api-key-change-in-production");
-
-        var response = await _client.SendAsync(request);
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-        var body = await response.Content.ReadFromJsonAsync<JsonDocument>();
-        body!.RootElement.GetArrayLength().Should().BeGreaterThanOrEqualTo(2);
-    }
-
-    [Fact]
     public async Task GetRegistration_AfterRevoke_Returns401()
     {
-        var serverId = GetServerId("code-assist");
-
         var regPayload = new
         {
             client_name = "Revoke RAT Test Client",
             redirect_uris = new[] { "https://app.contoso.com/oauth/callback" },
             grant_types = new[] { "client_credentials" },
             token_endpoint_auth_method = "client_secret_post",
-            requested_server_ids = new[] { serverId },
-            requested_scopes = new Dictionary<string, string[]>()
+            scope = new[] { "read" }
         };
 
         var regResponse = await _client.PostAsJsonAsync("/oauth/register", regPayload, JsonOptions);
@@ -287,19 +194,13 @@ public sealed class IntegrationTests : IClassFixture<WebApplicationFactory<Progr
     [Fact]
     public async Task TokenRequest_MultipleScopeParams_Succeeds()
     {
-        var serverId = GetServerId("code-assist");
-
         var regPayload = new
         {
             client_name = "Multi Scope Test Client",
             redirect_uris = new[] { "https://app.contoso.com/oauth/callback" },
             grant_types = new[] { "client_credentials" },
             token_endpoint_auth_method = "client_secret_post",
-            requested_server_ids = new[] { serverId },
-            requested_scopes = new Dictionary<string, string[]>
-            {
-                [serverId.ToString()] = ["read", "write"]
-            }
+            scope = new[] { "read", "write" }
         };
 
         var regResponse = await _client.PostAsJsonAsync("/oauth/register", regPayload, JsonOptions);
@@ -313,7 +214,6 @@ public sealed class IntegrationTests : IClassFixture<WebApplicationFactory<Progr
             new KeyValuePair<string, string>("grant_type", "client_credentials"),
             new KeyValuePair<string, string>("client_id", clientId),
             new KeyValuePair<string, string>("client_secret", clientSecret),
-            new KeyValuePair<string, string>("server_id", serverId.ToString()),
             new KeyValuePair<string, string>("scope", "read"),
             new KeyValuePair<string, string>("scope", "write"),
         });
@@ -325,8 +225,6 @@ public sealed class IntegrationTests : IClassFixture<WebApplicationFactory<Progr
     [Fact]
     public async Task TokenRequest_WrongAuthMethod_Returns401()
     {
-        var serverId = GetServerId("code-assist");
-
         // Register with client_secret_post
         var regPayload = new
         {
@@ -334,8 +232,7 @@ public sealed class IntegrationTests : IClassFixture<WebApplicationFactory<Progr
             redirect_uris = new[] { "https://app.contoso.com/oauth/callback" },
             grant_types = new[] { "client_credentials" },
             token_endpoint_auth_method = "client_secret_post",
-            requested_server_ids = new[] { serverId },
-            requested_scopes = new Dictionary<string, string[]>()
+            scope = new[] { "read" }
         };
 
         var regResponse = await _client.PostAsJsonAsync("/oauth/register", regPayload, JsonOptions);
@@ -347,8 +244,7 @@ public sealed class IntegrationTests : IClassFixture<WebApplicationFactory<Progr
         var credentials = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"{clientId}:{clientSecret}"));
         var content = new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["grant_type"] = "client_credentials",
-            ["server_id"] = serverId.ToString()
+            ["grant_type"] = "client_credentials"
         });
 
         var request = new HttpRequestMessage(HttpMethod.Post, "/oauth/token") { Content = content };
@@ -361,16 +257,13 @@ public sealed class IntegrationTests : IClassFixture<WebApplicationFactory<Progr
     [Fact]
     public async Task RotateSecret_WithoutBody_Succeeds()
     {
-        var serverId = GetServerId("code-assist");
-
         var regPayload = new
         {
             client_name = "Rotate No Body Test Client",
             redirect_uris = new[] { "https://app.contoso.com/oauth/callback" },
             grant_types = new[] { "client_credentials" },
             token_endpoint_auth_method = "client_secret_post",
-            requested_server_ids = new[] { serverId },
-            requested_scopes = new Dictionary<string, string[]>()
+            scope = new[] { "read" }
         };
 
         var regResponse = await _client.PostAsJsonAsync("/oauth/register", regPayload, JsonOptions);
@@ -391,8 +284,6 @@ public sealed class IntegrationTests : IClassFixture<WebApplicationFactory<Progr
     [Fact]
     public async Task SecretRotation_InvalidatesOldSecret()
     {
-        var serverId = GetServerId("code-assist");
-
         // Register
         var regPayload = new
         {
@@ -400,11 +291,7 @@ public sealed class IntegrationTests : IClassFixture<WebApplicationFactory<Progr
             redirect_uris = new[] { "https://app.contoso.com/oauth/callback" },
             grant_types = new[] { "client_credentials" },
             token_endpoint_auth_method = "client_secret_post",
-            requested_server_ids = new[] { serverId },
-            requested_scopes = new Dictionary<string, string[]>
-            {
-                [serverId.ToString()] = ["read"]
-            }
+            scope = new[] { "read" }
         };
 
         var regResponse = await _client.PostAsJsonAsync("/oauth/register", regPayload, JsonOptions);
@@ -428,8 +315,7 @@ public sealed class IntegrationTests : IClassFixture<WebApplicationFactory<Progr
         {
             ["grant_type"] = "client_credentials",
             ["client_id"] = clientId,
-            ["client_secret"] = oldSecret,
-            ["server_id"] = serverId.ToString()
+            ["client_secret"] = oldSecret
         });
         var oldTokenResponse = await _client.PostAsync("/oauth/token", tokenPayloadOld);
         oldTokenResponse.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
@@ -439,10 +325,39 @@ public sealed class IntegrationTests : IClassFixture<WebApplicationFactory<Progr
         {
             ["grant_type"] = "client_credentials",
             ["client_id"] = clientId,
-            ["client_secret"] = newSecret,
-            ["server_id"] = serverId.ToString()
+            ["client_secret"] = newSecret
         });
         var newTokenResponse = await _client.PostAsync("/oauth/token", tokenPayloadNew);
         newTokenResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task TokenRequest_WithAudience_Succeeds()
+    {
+        var regPayload = new
+        {
+            client_name = "Audience Test Client",
+            redirect_uris = new[] { "https://app.contoso.com/oauth/callback" },
+            grant_types = new[] { "client_credentials" },
+            token_endpoint_auth_method = "client_secret_post",
+            scope = new[] { "read" }
+        };
+
+        var regResponse = await _client.PostAsJsonAsync("/oauth/register", regPayload, JsonOptions);
+        var regBody = await regResponse.Content.ReadFromJsonAsync<JsonDocument>();
+        var clientId = regBody!.RootElement.GetProperty("client_id").GetString()!;
+        var clientSecret = regBody.RootElement.GetProperty("client_secret").GetString()!;
+
+        var tokenPayload = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["grant_type"] = "client_credentials",
+            ["client_id"] = clientId,
+            ["client_secret"] = clientSecret,
+            ["resource"] = "http://localhost:5100",
+            ["scope"] = "read"
+        });
+
+        var tokenResponse = await _client.PostAsync("/oauth/token", tokenPayload);
+        tokenResponse.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 }

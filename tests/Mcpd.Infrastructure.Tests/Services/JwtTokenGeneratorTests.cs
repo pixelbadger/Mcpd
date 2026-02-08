@@ -45,8 +45,7 @@ public sealed class JwtTokenGeneratorTests : IDisposable
     [Fact]
     public async Task GenerateAccessToken_ContainsExpectedClaims()
     {
-        var serverId = Guid.NewGuid();
-        var token = _generator.GenerateAccessToken("client-1", serverId, "code-assist", ["read", "write"], TimeSpan.FromMinutes(60));
+        var token = _generator.GenerateAccessToken("client-1", ["read", "write"], TimeSpan.FromMinutes(60), "code-assist");
 
         token.Should().NotBeNullOrWhiteSpace();
 
@@ -62,8 +61,25 @@ public sealed class JwtTokenGeneratorTests : IDisposable
         validationResult.IsValid.Should().BeTrue();
         validationResult.Claims.Should().ContainKey("sub");
         validationResult.Claims["sub"].Should().Be("client-1");
-        validationResult.Claims.Should().ContainKey("server_id");
-        validationResult.Claims["server_id"].Should().Be(serverId.ToString());
+    }
+
+    [Fact]
+    public async Task GenerateAccessToken_WithoutAudience_Succeeds()
+    {
+        var token = _generator.GenerateAccessToken("client-1", ["read"], TimeSpan.FromMinutes(60), null);
+
+        token.Should().NotBeNullOrWhiteSpace();
+
+        var handler = new JsonWebTokenHandler();
+        var validationResult = await handler.ValidateTokenAsync(token, new TokenValidationParameters
+        {
+            ValidIssuer = _options.Issuer,
+            ValidateAudience = false,
+            IssuerSigningKey = _signingKeyManager.SecurityKey,
+            ValidateLifetime = true
+        });
+
+        validationResult.IsValid.Should().BeTrue();
     }
 
     public void Dispose() => _signingKeyManager.Dispose();

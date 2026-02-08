@@ -8,12 +8,10 @@ public sealed class ClientRegistrationRepository(McpdDbContext db) : IClientRegi
 {
     public async Task<ClientRegistration?> GetByClientIdAsync(string clientId, CancellationToken ct) =>
         await db.ClientRegistrations
-            .Include(x => x.ServerGrants)
             .FirstOrDefaultAsync(x => x.ClientId == clientId, ct);
 
     public async Task<ClientRegistration?> GetByIdAsync(Guid id, CancellationToken ct) =>
         await db.ClientRegistrations
-            .Include(x => x.ServerGrants)
             .FirstOrDefaultAsync(x => x.Id == id, ct);
 
     public async Task AddAsync(ClientRegistration registration, CancellationToken ct)

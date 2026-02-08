@@ -21,7 +21,7 @@ public sealed class TokenEndpoint(IMediator mediator)
         string? grantType = null;
         string? clientId = null;
         string? clientSecret = null;
-        string? serverId = null;
+        string? audience = null;
         string? scope = null;
 
         if (HttpContext.Request.HasFormContentType)
@@ -30,7 +30,10 @@ public sealed class TokenEndpoint(IMediator mediator)
             grantType = form["grant_type"].ToString();
             clientId = form["client_id"].ToString();
             clientSecret = form["client_secret"].ToString();
-            serverId = form["server_id"].ToString();
+            // Accept both "resource" (RFC 8707) and "audience" as the audience parameter
+            audience = form["resource"].ToString();
+            if (string.IsNullOrWhiteSpace(audience))
+                audience = form["audience"].ToString();
             var scopeValues = form["scope"];
             scope = scopeValues.Count > 1
                 ? string.Join(" ", scopeValues!)
@@ -66,17 +69,14 @@ public sealed class TokenEndpoint(IMediator mediator)
             return;
         }
 
-        if (!Guid.TryParse(serverId, out var serverIdGuid))
-        {
-            await SendAsync(new TokenErrorResponse("invalid_request", "server_id must be a valid GUID."), 400, ct);
-            return;
-        }
-
         var scopes = string.IsNullOrWhiteSpace(scope)
             ? null
             : scope.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
-        var result = await mediator.Send(new ValidateTokenRequestQuery(clientId, clientSecret, serverIdGuid, scopes, authMethod), ct);
+        var effectiveAudience = string.IsNullOrWhiteSpace(audience) ? null : audience;
+
+        var result = await mediator.Send(
+            new ValidateTokenRequestQuery(clientId, clientSecret, scopes, authMethod, effectiveAudience), ct);
 
         if (!result.IsAuthorized)
         {

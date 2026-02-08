@@ -4,8 +4,6 @@ namespace Mcpd.Domain.Entities;
 
 public sealed class ClientRegistration
 {
-    private readonly List<ClientServerGrant> _serverGrants = [];
-
     private ClientRegistration() { }
 
     public ClientRegistration(
@@ -15,7 +13,8 @@ public sealed class ClientRegistration
         string tokenEndpointAuthMethod,
         string[] grantTypes,
         string[] redirectUris,
-        string registrationAccessTokenHash)
+        string registrationAccessTokenHash,
+        string[] scope)
     {
         Id = Guid.NewGuid();
         ClientId = clientId;
@@ -26,6 +25,7 @@ public sealed class ClientRegistration
         GrantTypes = grantTypes;
         RedirectUris = redirectUris;
         RegistrationAccessToken = registrationAccessTokenHash;
+        Scope = scope;
         CreatedAt = DateTimeOffset.UtcNow;
     }
 
@@ -37,12 +37,11 @@ public sealed class ClientRegistration
     public string TokenEndpointAuthMethod { get; private set; } = null!;
     public string[] GrantTypes { get; private set; } = null!;
     public string[] RedirectUris { get; private set; } = null!;
+    public string[] Scope { get; private set; } = null!;
     public string? RegistrationAccessToken { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset? SecretExpiresAt { get; private set; }
     public DateTimeOffset? SecretRotatedAt { get; private set; }
-
-    public IReadOnlyCollection<ClientServerGrant> ServerGrants => _serverGrants.AsReadOnly();
 
     public void SetSecretExpiry(DateTimeOffset expiresAt)
     {
@@ -56,12 +55,13 @@ public sealed class ClientRegistration
         SecretExpiresAt = newExpiresAt;
     }
 
-    public void UpdateMetadata(string clientName, string[] redirectUris, string tokenEndpointAuthMethod, string[] grantTypes)
+    public void UpdateMetadata(string clientName, string[] redirectUris, string tokenEndpointAuthMethod, string[] grantTypes, string[] scope)
     {
         ClientName = clientName;
         RedirectUris = redirectUris;
         TokenEndpointAuthMethod = tokenEndpointAuthMethod;
         GrantTypes = grantTypes;
+        Scope = scope;
     }
 
     public void Revoke()

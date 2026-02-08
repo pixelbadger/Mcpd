@@ -7,15 +7,9 @@ public sealed record ClientRegistrationResponse(
     string[] RedirectUris,
     string[] GrantTypes,
     string TokenEndpointAuthMethod,
+    string[] Scope,
     string? RegistrationAccessToken,
-    DateTimeOffset? ClientSecretExpiresAt,
-    ServerGrantSummary[] GrantedServers);
-
-public sealed record ServerGrantSummary(
-    Guid ServerId,
-    string ServerName,
-    string[] Scopes,
-    bool IsActive);
+    DateTimeOffset? ClientSecretExpiresAt);
 
 public sealed record TokenResponse(
     string AccessToken,

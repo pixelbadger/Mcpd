@@ -10,9 +10,9 @@ namespace Mcpd.Application.Queries;
 public sealed record ValidateTokenRequestQuery(
     string ClientId,
     string ClientSecret,
-    Guid ServerId,
     string[]? RequestedScopes,
-    string AuthMethod) : IQuery<TokenValidationResult>;
+    string AuthMethod,
+    string? Audience) : IQuery<TokenValidationResult>;
 
 public sealed record TokenValidationResult(
     bool IsAuthorized,
@@ -24,8 +24,6 @@ public sealed record TokenValidationResult(
 
 public sealed class ValidateTokenRequestQueryHandler(
     IClientRegistrationRepository clientRepo,
-    IClientServerGrantRepository grantRepo,
-    IMcpServerRepository serverRepo,
     ISecretHasher secretHasher,
     ITokenGenerator tokenGenerator) : IQueryHandler<ValidateTokenRequestQuery, TokenValidationResult>
 {
@@ -50,23 +48,17 @@ public sealed class ValidateTokenRequestQueryHandler(
         if (!secretHasher.Verify(query.ClientSecret, new HashedSecret(registration.ClientSecretHash)))
             return Fail("invalid_client", "Invalid client credentials.");
 
-        // Step 3: Verify active ClientServerGrant exists
-        var grant = await grantRepo.GetAsync(registration.Id, query.ServerId, ct);
-        if (grant is null || !grant.IsActive)
-            return Fail("unauthorized_client", "Client is not authorized for the requested server.");
-
-        // Step 4: Verify requested scopes are subset of grant's scopes
+        // Step 4: Verify requested scopes are subset of registered scopes
         var requestedScopes = query.RequestedScopes ?? [];
-        if (requestedScopes.Length > 0 && !requestedScopes.All(s => grant.Scopes.Contains(s)))
-            return Fail("invalid_scope", "Requested scopes exceed granted scopes.");
+        if (requestedScopes.Length > 0 && !requestedScopes.All(s => registration.Scope.Contains(s)))
+            return Fail("invalid_scope", "Requested scopes exceed registered scopes.");
 
-        var effectiveScopes = requestedScopes.Length > 0 ? requestedScopes : grant.Scopes;
+        var effectiveScopes = requestedScopes.Length > 0 ? requestedScopes : registration.Scope;
 
-        // Step 5: Get server info and issue token
-        var server = await serverRepo.GetByIdAsync(query.ServerId, ct);
+        // Step 5: Issue token
         var lifetime = TimeSpan.FromMinutes(60);
         var accessToken = tokenGenerator.GenerateAccessToken(
-            query.ClientId, query.ServerId, server?.Name ?? "unknown", effectiveScopes, lifetime);
+            query.ClientId, effectiveScopes, lifetime, query.Audience);
 
         return new TokenValidationResult(
             true, null, null, accessToken, effectiveScopes, (int)lifetime.TotalSeconds);

@@ -2,9 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using FluentAssertions;
-using Mcpd.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 using Xunit;
@@ -14,7 +12,6 @@ namespace Mcpd.Api.Tests;
 public sealed class WellKnownEndpointTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly HttpClient _client;
-    private readonly WebApplicationFactory<Program> _factory;
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
@@ -22,15 +19,7 @@ public sealed class WellKnownEndpointTests : IClassFixture<WebApplicationFactory
 
     public WellKnownEndpointTests(WebApplicationFactory<Program> factory)
     {
-        _factory = factory;
         _client = factory.CreateClient();
-    }
-
-    private Guid GetServerId(string serverName)
-    {
-        using var scope = _factory.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<McpdDbContext>();
-        return db.McpServers.First(s => s.Name == serverName).Id;
     }
 
     [Fact]
@@ -70,10 +59,21 @@ public sealed class WellKnownEndpointTests : IClassFixture<WebApplicationFactory
     }
 
     [Fact]
+    public async Task OpenIdConfiguration_ReturnsRequiredFields()
+    {
+        var response = await _client.GetAsync("/.well-known/openid-configuration");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<JsonDocument>();
+        var root = body!.RootElement;
+
+        root.GetProperty("issuer").GetString().Should().NotBeNullOrWhiteSpace();
+        root.GetProperty("jwks_uri").GetString().Should().Contain("/.well-known/jwks.json");
+    }
+
+    [Fact]
     public async Task Jwks_KeyCanValidateAccessTokens()
     {
-        var serverId = GetServerId("code-assist");
-
         // Register a client and get a token
         var regPayload = new
         {
@@ -81,11 +81,7 @@ public sealed class WellKnownEndpointTests : IClassFixture<WebApplicationFactory
             redirect_uris = new[] { "https://app.contoso.com/oauth/callback" },
             grant_types = new[] { "client_credentials" },
             token_endpoint_auth_method = "client_secret_post",
-            requested_server_ids = new[] { serverId },
-            requested_scopes = new Dictionary<string, string[]>
-            {
-                [serverId.ToString()] = ["read"]
-            }
+            scope = new[] { "read" }
         };
 
         var regResponse = await _client.PostAsJsonAsync("/oauth/register", regPayload, JsonOptions);
@@ -100,7 +96,7 @@ public sealed class WellKnownEndpointTests : IClassFixture<WebApplicationFactory
             ["grant_type"] = "client_credentials",
             ["client_id"] = clientId,
             ["client_secret"] = clientSecret,
-            ["server_id"] = serverId.ToString(),
+            ["resource"] = "code-assist",
             ["scope"] = "read"
         });
 

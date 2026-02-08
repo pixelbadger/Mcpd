@@ -19,9 +19,6 @@ public sealed class RegisterClientCommandValidator : AbstractValidator<RegisterC
             .WithMessage("client_name must not contain control characters.")
             .When(x => !string.IsNullOrEmpty(x.ClientName));
 
-        RuleFor(x => x.RequestedServerIds)
-            .NotEmpty().WithMessage("At least one server_id is required.");
-
         RuleFor(x => x.RedirectUris)
             .NotEmpty().WithMessage("At least one redirect_uri is required.");
 

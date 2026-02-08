@@ -5,5 +5,5 @@ public interface ITokenGenerator
     string GenerateClientId();
     string GenerateClientSecret();
     string GenerateRegistrationAccessToken();
-    string GenerateAccessToken(string clientId, Guid serverId, string serverName, string[] scopes, TimeSpan lifetime);
+    string GenerateAccessToken(string clientId, string[] scopes, TimeSpan lifetime, string? audience);
 }
