@@ -14,7 +14,7 @@ src/
 └── Mcpd.Api/               # FastEndpoints, middleware, composition root
 ```
 
-**Stack**: .NET 10, C# 13, FastEndpoints, EF Core InMemory, Argon2id, HMAC-SHA256 JWTs, FluentValidation
+**Stack**: .NET 10, C# 13, FastEndpoints, Mediator (source-generated), EF Core InMemory, Argon2id, HMAC-SHA256 JWTs, FluentValidation
 
 ## Getting Started
 
@@ -111,12 +111,12 @@ See `src/Mcpd.Api/appsettings.json` for the full configuration shape including M
 dotnet test Mcpd.sln
 ```
 
-50 tests across 4 projects:
+57 tests across 4 projects:
 
 - **Domain** (15) — entity state transitions, value object equality
-- **Application** (11) — validator edge cases
+- **Application** (14) — validator edge cases
 - **Infrastructure** (15) — Argon2 round-trip, callback pattern matching, JWT claim validation
-- **API Integration** (9) — full registration→token flow, grant enforcement, secret rotation, auth checks
+- **API Integration** (13) — full registration→token flow, grant enforcement, secret rotation, auth checks
 
 ## License
 

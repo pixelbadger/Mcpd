@@ -2,6 +2,7 @@ using FastEndpoints;
 using Mcpd.Api.PreProcessors;
 using Mcpd.Application.Commands;
 using Mcpd.Application.Contracts;
+using Mediator;
 
 namespace Mcpd.Api.Endpoints;
 
@@ -16,7 +17,7 @@ public sealed class UpdateClientRegistrationRequest
     public Dictionary<Guid, string[]>? AdditionalScopes { get; set; }
 }
 
-public sealed class UpdateClientRegistrationEndpoint(UpdateClientCommandHandler handler)
+public sealed class UpdateClientRegistrationEndpoint(IMediator mediator)
     : Endpoint<UpdateClientRegistrationRequest, ClientRegistrationResponse>
 {
     public override void Configure()
@@ -40,7 +41,7 @@ public sealed class UpdateClientRegistrationEndpoint(UpdateClientCommandHandler 
 
         try
         {
-            var response = await handler.HandleAsync(command, ct);
+            var response = await mediator.Send(command, ct);
             await SendOkAsync(response, ct);
         }
         catch (InvalidOperationException ex)

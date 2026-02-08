@@ -1,17 +1,18 @@
 using Mcpd.Application.Contracts;
 using Mcpd.Domain.Interfaces;
+using Mediator;
 
 namespace Mcpd.Application.Queries;
 
-public sealed record ListServerClientsQuery(Guid ServerId);
+public sealed record ListServerClientsQuery(Guid ServerId) : IQuery<IReadOnlyList<ServerClientSummary>>;
 
 public sealed record ServerClientSummary(string ClientId, string ClientName, string[] Scopes, bool IsActive);
 
 public sealed class ListServerClientsQueryHandler(
     IClientServerGrantRepository grantRepo,
-    IClientRegistrationRepository clientRepo)
+    IClientRegistrationRepository clientRepo) : IQueryHandler<ListServerClientsQuery, IReadOnlyList<ServerClientSummary>>
 {
-    public async Task<IReadOnlyList<ServerClientSummary>> HandleAsync(ListServerClientsQuery query, CancellationToken ct)
+    public async ValueTask<IReadOnlyList<ServerClientSummary>> Handle(ListServerClientsQuery query, CancellationToken ct)
     {
         var grants = await grantRepo.GetGrantsForServerAsync(query.ServerId, ct);
         var results = new List<ServerClientSummary>();

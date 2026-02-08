@@ -1,18 +1,19 @@
 using Mcpd.Application.Contracts;
 using Mcpd.Domain.Entities;
 using Mcpd.Domain.Interfaces;
+using Mediator;
 
 namespace Mcpd.Application.Commands;
 
-public sealed record GrantServerAccessCommand(Guid ServerId, string ClientId, string[] Scopes);
+public sealed record GrantServerAccessCommand(Guid ServerId, string ClientId, string[] Scopes) : ICommand<ServerGrantSummary>;
 
 public sealed class GrantServerAccessCommandHandler(
     IClientRegistrationRepository clientRepo,
     IMcpServerRepository serverRepo,
     IClientServerGrantRepository grantRepo,
-    IAuditLogRepository auditRepo)
+    IAuditLogRepository auditRepo) : ICommandHandler<GrantServerAccessCommand, ServerGrantSummary>
 {
-    public async Task<ServerGrantSummary> HandleAsync(GrantServerAccessCommand command, CancellationToken ct)
+    public async ValueTask<ServerGrantSummary> Handle(GrantServerAccessCommand command, CancellationToken ct)
     {
         var registration = await clientRepo.GetByClientIdAsync(command.ClientId, ct)
             ?? throw new InvalidOperationException("Client not found.");

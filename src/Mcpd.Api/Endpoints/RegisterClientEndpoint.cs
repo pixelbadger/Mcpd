@@ -2,6 +2,7 @@ using FastEndpoints;
 using Mcpd.Application.Commands;
 using Mcpd.Application.Contracts;
 using Mcpd.Application.Validators;
+using Mediator;
 
 namespace Mcpd.Api.Endpoints;
 
@@ -15,7 +16,7 @@ public sealed class RegisterClientRequest
     public Dictionary<Guid, string[]> RequestedScopes { get; set; } = new();
 }
 
-public sealed class RegisterClientEndpoint(RegisterClientCommandHandler handler) : Endpoint<RegisterClientRequest, ClientRegistrationResponse>
+public sealed class RegisterClientEndpoint(IMediator mediator) : Endpoint<RegisterClientRequest, ClientRegistrationResponse>
 {
     public override void Configure()
     {
@@ -47,7 +48,7 @@ public sealed class RegisterClientEndpoint(RegisterClientCommandHandler handler)
 
         try
         {
-            var response = await handler.HandleAsync(command, ct);
+            var response = await mediator.Send(command, ct);
             await SendAsync(response, 201, ct);
         }
         catch (InvalidOperationException ex) when (ex.Message.StartsWith("invalid_redirect_uri"))

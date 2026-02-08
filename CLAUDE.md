@@ -24,7 +24,7 @@ Mcpd.sln
 │   ├── Mcpd.Application.Tests/
 │   ├── Mcpd.Infrastructure.Tests/
 │   └── Mcpd.Api.Tests/
-└── Claude.md
+└── CLAUDE.md
 ```
 
 **Dependency flow**: `Api → Application → Domain` and `Infrastructure → Application → Domain`. The API and Infrastructure layers depend on Application; Domain depends on nothing.
@@ -194,7 +194,7 @@ public interface IAuditLogRepository
 
 ## Application Layer (`Mcpd.Application`)
 
-Uses **MediatR-free CQRS** — commands and queries are plain records handled by services that FastEndpoints calls directly. No mediator indirection; the endpoint *is* the handler boundary.
+Uses **CQRS with source-generated Mediator** — commands and queries implement `ICommand<T>`/`IQuery<T>`, handlers implement `ICommandHandler<T,R>`/`IQueryHandler<T,R>`. Endpoints inject `IMediator` and dispatch via `mediator.Send()`. Handler methods return `ValueTask<T>` and are named `Handle`.
 
 ### Service Interfaces (defined here, implemented in Infrastructure)
 
@@ -445,7 +445,7 @@ app.UseFastEndpoints(c =>
 
 ### Endpoints
 
-All endpoints use the FastEndpoints `Endpoint<TRequest, TResponse>` base. No MediatR — the endpoint directly calls Application-layer services.
+All endpoints use the FastEndpoints `Endpoint<TRequest, TResponse>` base. Endpoints inject `IMediator` and dispatch commands/queries via `mediator.Send()`.
 
 #### `POST /oauth/register` — Dynamic Client Registration (RFC 7591)
 
@@ -636,7 +636,7 @@ Use `WebApplicationFactory<Program>` with the InMemory provider. Each test class
 | Registration Access Token (RFC 7592) | Allows clients to self-manage without admin intervention |
 | JWT access tokens with `aud` = server name | MCP servers can validate tokens independently using shared signing key or JWKS |
 | snake_case JSON | OAuth2 RFCs use snake_case; fighting this creates mapping pain for every client |
-| No MediatR | FastEndpoints already provides the handler boundary; MediatR adds indirection without benefit here |
+| Source-generated Mediator | Provides automatic handler discovery and DI registration via compile-time source generation; avoids MediatR's runtime reflection overhead |
 | InMemory EF with provider-agnostic queries | Zero-friction startup; swap to real provider by changing one line and adding migrations |
 
 ---
@@ -661,6 +661,7 @@ Use `WebApplicationFactory<Program>` with the InMemory provider. Each test class
 
 <!-- Application -->
 <PackageReference Include="FluentValidation" />
+<PackageReference Include="Mediator.Abstractions" />
 
 <!-- Infrastructure -->
 <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
@@ -670,6 +671,7 @@ Use `WebApplicationFactory<Program>` with the InMemory provider. Each test class
 <!-- Api -->
 <PackageReference Include="FastEndpoints" />
 <PackageReference Include="FastEndpoints.Security" />
+<PackageReference Include="Mediator.SourceGenerator" />
 ```
 
 ---
@@ -679,9 +681,10 @@ Use `WebApplicationFactory<Program>` with the InMemory provider. Each test class
 1. Bind configuration (`McpdOptions`, `McpServers[]`)
 2. Register EF `McpdDbContext` with InMemory provider
 3. Register repositories, services, validators
-4. `AddFastEndpoints()` + `AddAuthorization()`
-5. Build app
-6. Seed MCP servers and callback whitelists from config
-7. `UseFastEndpoints(...)` with snake_case and ProblemDetails
-8. `UseRateLimiter()`
-9. Run
+4. `AddMediator()` with scoped lifetime (source-generated handler discovery)
+5. `AddFastEndpoints()` + `AddAuthorization()`
+6. Build app
+7. Seed MCP servers and callback whitelists from config
+8. `UseFastEndpoints(...)` with snake_case and ProblemDetails
+9. `UseRateLimiter()`
+10. Run

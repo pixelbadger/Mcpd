@@ -1,10 +1,11 @@
 using FastEndpoints;
 using Mcpd.Api.PreProcessors;
 using Mcpd.Application.Commands;
+using Mediator;
 
 namespace Mcpd.Api.Endpoints;
 
-public sealed class RotateClientSecretEndpoint(RotateClientSecretCommandHandler handler)
+public sealed class RotateClientSecretEndpoint(IMediator mediator)
     : EndpointWithoutRequest
 {
     public override void Configure()
@@ -21,7 +22,7 @@ public sealed class RotateClientSecretEndpoint(RotateClientSecretCommandHandler 
 
         try
         {
-            var result = await handler.HandleAsync(new RotateClientSecretCommand(clientId!), ct);
+            var result = await mediator.Send(new RotateClientSecretCommand(clientId!), ct);
             await SendOkAsync(result, ct);
         }
         catch (InvalidOperationException ex)

@@ -2,10 +2,11 @@ using System.Text;
 using FastEndpoints;
 using Mcpd.Application.Contracts;
 using Mcpd.Application.Queries;
+using Mediator;
 
 namespace Mcpd.Api.Endpoints;
 
-public sealed class TokenEndpoint(ValidateTokenRequestQueryHandler handler)
+public sealed class TokenEndpoint(IMediator mediator)
     : EndpointWithoutRequest
 {
     public override void Configure()
@@ -75,7 +76,7 @@ public sealed class TokenEndpoint(ValidateTokenRequestQueryHandler handler)
             ? null
             : scope.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
-        var result = await handler.HandleAsync(new ValidateTokenRequestQuery(clientId, clientSecret, serverIdGuid, scopes, authMethod), ct);
+        var result = await mediator.Send(new ValidateTokenRequestQuery(clientId, clientSecret, serverIdGuid, scopes, authMethod), ct);
 
         if (!result.IsAuthorized)
         {

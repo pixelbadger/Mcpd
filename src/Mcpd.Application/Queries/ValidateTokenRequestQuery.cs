@@ -3,6 +3,7 @@ using Mcpd.Application.Interfaces;
 using Mcpd.Domain.Enums;
 using Mcpd.Domain.Interfaces;
 using Mcpd.Domain.ValueObjects;
+using Mediator;
 
 namespace Mcpd.Application.Queries;
 
@@ -11,7 +12,7 @@ public sealed record ValidateTokenRequestQuery(
     string ClientSecret,
     Guid ServerId,
     string[]? RequestedScopes,
-    string AuthMethod);
+    string AuthMethod) : IQuery<TokenValidationResult>;
 
 public sealed record TokenValidationResult(
     bool IsAuthorized,
@@ -26,12 +27,12 @@ public sealed class ValidateTokenRequestQueryHandler(
     IClientServerGrantRepository grantRepo,
     IMcpServerRepository serverRepo,
     ISecretHasher secretHasher,
-    ITokenGenerator tokenGenerator)
+    ITokenGenerator tokenGenerator) : IQueryHandler<ValidateTokenRequestQuery, TokenValidationResult>
 {
     private static readonly HashedSecret DummyHash = new(
         "$argon2id$AAAAAAAAAAAAAAAAAAAAAA==$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
 
-    public async Task<TokenValidationResult> HandleAsync(ValidateTokenRequestQuery query, CancellationToken ct)
+    public async ValueTask<TokenValidationResult> Handle(ValidateTokenRequestQuery query, CancellationToken ct)
     {
         // Step 1: Verify client exists and is Active
         var registration = await clientRepo.GetByClientIdAsync(query.ClientId, ct);
