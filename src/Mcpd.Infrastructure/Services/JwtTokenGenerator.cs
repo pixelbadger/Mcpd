@@ -1,5 +1,4 @@
 using System.Security.Cryptography;
-using System.Text;
 using Mcpd.Application.Interfaces;
 using Mcpd.Infrastructure.Configuration;
 using Microsoft.Extensions.Options;
@@ -8,7 +7,7 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace Mcpd.Infrastructure.Services;
 
-public sealed class JwtTokenGenerator(IOptions<McpdOptions> options) : ITokenGenerator
+public sealed class JwtTokenGenerator(IOptions<McpdOptions> options, SigningKeyManager signingKeyManager) : ITokenGenerator
 {
     private readonly McpdOptions _options = options.Value;
 
@@ -23,8 +22,7 @@ public sealed class JwtTokenGenerator(IOptions<McpdOptions> options) : ITokenGen
 
     public string GenerateAccessToken(string clientId, Guid serverId, string serverName, string[] scopes, TimeSpan lifetime)
     {
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.TokenSigningKey));
-        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var credentials = signingKeyManager.GetSigningCredentials();
 
         var descriptor = new SecurityTokenDescriptor
         {
