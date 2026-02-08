@@ -46,6 +46,37 @@ public sealed class JwtTokenGenerator(IOptions<McpdOptions> options) : ITokenGen
         return handler.CreateToken(descriptor);
     }
 
+    public string GenerateUserAccessToken(string userSubject, string? preferredUsername, Guid serverId, string serverName, string[] scopes, TimeSpan lifetime)
+    {
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.TokenSigningKey));
+        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        var claims = new List<System.Security.Claims.Claim>
+        {
+            new("sub", userSubject),
+            new("server_id", serverId.ToString()),
+            new("scope", string.Join(' ', scopes)),
+            new("jti", Guid.NewGuid().ToString()),
+            new("token_type", "user"),
+        };
+
+        if (!string.IsNullOrWhiteSpace(preferredUsername))
+            claims.Add(new("preferred_username", preferredUsername));
+
+        var descriptor = new SecurityTokenDescriptor
+        {
+            Issuer = _options.Issuer,
+            Audience = serverName,
+            Subject = new System.Security.Claims.ClaimsIdentity(claims),
+            IssuedAt = DateTime.UtcNow,
+            Expires = DateTime.UtcNow.Add(lifetime),
+            SigningCredentials = credentials
+        };
+
+        var handler = new JsonWebTokenHandler();
+        return handler.CreateToken(descriptor);
+    }
+
     private static string Base64UrlEncode(byte[] bytes) =>
         Convert.ToBase64String(bytes)
             .TrimEnd('=')

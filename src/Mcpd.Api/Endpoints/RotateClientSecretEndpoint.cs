@@ -11,7 +11,7 @@ public sealed class RotateClientSecretEndpoint(RotateClientSecretCommandHandler 
     {
         Post("/admin/clients/{clientId}/rotate-secret");
         AllowAnonymous();
-        PreProcessor<AdminApiKeyPreProcessor<EmptyRequest>>();
+        PreProcessor<AdminAuthPreProcessor<EmptyRequest>>();
         Description(x => x.WithName("RotateClientSecret"));
     }
 

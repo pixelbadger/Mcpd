@@ -17,7 +17,7 @@ public sealed class ListMcpServersEndpoint(ListMcpServersQueryHandler handler)
     {
         Get("/admin/servers");
         AllowAnonymous();
-        PreProcessor<AdminApiKeyPreProcessor<ListMcpServersRequest>>();
+        PreProcessor<AdminAuthPreProcessor<ListMcpServersRequest>>();
         Description(x => x.WithName("ListMcpServers"));
     }
 

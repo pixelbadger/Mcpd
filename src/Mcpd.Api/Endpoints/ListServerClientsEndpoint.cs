@@ -16,7 +16,7 @@ public sealed class ListServerClientsEndpoint(ListServerClientsQueryHandler hand
     {
         Get("/admin/servers/{serverId}/clients");
         AllowAnonymous();
-        PreProcessor<AdminApiKeyPreProcessor<ListServerClientsRequest>>();
+        PreProcessor<AdminAuthPreProcessor<ListServerClientsRequest>>();
         Description(x => x.WithName("ListServerClients"));
     }
 

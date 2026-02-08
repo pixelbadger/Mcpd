@@ -17,7 +17,7 @@ public sealed class RevokeServerAccessEndpoint(RevokeServerAccessCommandHandler 
     {
         Delete("/admin/servers/{serverId}/grants/{clientId}");
         AllowAnonymous();
-        PreProcessor<AdminApiKeyPreProcessor<RevokeServerAccessRequest>>();
+        PreProcessor<AdminAuthPreProcessor<RevokeServerAccessRequest>>();
         Description(x => x.WithName("RevokeServerAccess"));
     }
 

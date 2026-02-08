@@ -19,7 +19,7 @@ public sealed class GrantServerAccessEndpoint(GrantServerAccessCommandHandler ha
     {
         Post("/admin/servers/{serverId}/grants");
         AllowAnonymous();
-        PreProcessor<AdminApiKeyPreProcessor<GrantServerAccessRequest>>();
+        PreProcessor<AdminAuthPreProcessor<GrantServerAccessRequest>>();
         Description(x => x.WithName("GrantServerAccess"));
     }
 

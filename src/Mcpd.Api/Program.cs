@@ -17,6 +17,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Configuration
 builder.Services.Configure<McpdOptions>(builder.Configuration.GetSection(McpdOptions.SectionName));
 builder.Services.Configure<RateLimitingOptions>(builder.Configuration.GetSection(RateLimitingOptions.SectionName));
+builder.Services.Configure<AuthServerOptions>(builder.Configuration.GetSection(AuthServerOptions.SectionName));
 
 // EF Core InMemory
 builder.Services.AddDbContext<McpdDbContext>(options =>
@@ -33,6 +34,8 @@ builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
 builder.Services.AddSingleton<ISecretHasher, Argon2SecretHasher>();
 builder.Services.AddSingleton<ITokenGenerator, JwtTokenGenerator>();
 builder.Services.AddScoped<ICallbackValidator, CallbackValidator>();
+builder.Services.AddSingleton<IUserTokenValidator, UserTokenValidator>();
+builder.Services.AddSingleton<IUserServerAuthorizationService, UserServerAuthorizationService>();
 
 // Command handlers
 builder.Services.AddScoped<RegisterClientCommandHandler>();
@@ -47,6 +50,7 @@ builder.Services.AddScoped<GetClientRegistrationQueryHandler>();
 builder.Services.AddScoped<ValidateTokenRequestQueryHandler>();
 builder.Services.AddScoped<ListMcpServersQueryHandler>();
 builder.Services.AddScoped<ListServerClientsQueryHandler>();
+builder.Services.AddScoped<ValidateUserTokenExchangeQueryHandler>();
 
 // Seeder
 builder.Services.AddScoped<DatabaseSeeder>();

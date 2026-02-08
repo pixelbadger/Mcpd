@@ -66,4 +66,53 @@ public sealed class JwtTokenGeneratorTests
         validationResult.Claims.Should().ContainKey("server_id");
         validationResult.Claims["server_id"].Should().Be(serverId.ToString());
     }
+
+    [Fact]
+    public async Task GenerateUserAccessToken_ContainsUserClaims()
+    {
+        var serverId = Guid.NewGuid();
+        var token = _generator.GenerateUserAccessToken(
+            "user-sub-123", "alice@contoso.com", serverId, "code-assist", ["read"], TimeSpan.FromMinutes(60));
+
+        token.Should().NotBeNullOrWhiteSpace();
+
+        var handler = new JsonWebTokenHandler();
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.TokenSigningKey));
+        var validationResult = await handler.ValidateTokenAsync(token, new TokenValidationParameters
+        {
+            ValidIssuer = _options.Issuer,
+            ValidAudience = "code-assist",
+            IssuerSigningKey = key,
+            ValidateLifetime = true
+        });
+
+        validationResult.IsValid.Should().BeTrue();
+        validationResult.Claims["sub"].Should().Be("user-sub-123");
+        validationResult.Claims["preferred_username"].Should().Be("alice@contoso.com");
+        validationResult.Claims["token_type"].Should().Be("user");
+        validationResult.Claims["server_id"].Should().Be(serverId.ToString());
+        validationResult.Claims["scope"].Should().Be("read");
+    }
+
+    [Fact]
+    public async Task GenerateUserAccessToken_WithoutUsername_OmitsPreferredUsername()
+    {
+        var serverId = Guid.NewGuid();
+        var token = _generator.GenerateUserAccessToken(
+            "user-sub-456", null, serverId, "data-pipeline", ["read"], TimeSpan.FromMinutes(30));
+
+        var handler = new JsonWebTokenHandler();
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.TokenSigningKey));
+        var validationResult = await handler.ValidateTokenAsync(token, new TokenValidationParameters
+        {
+            ValidIssuer = _options.Issuer,
+            ValidAudience = "data-pipeline",
+            IssuerSigningKey = key,
+            ValidateLifetime = true
+        });
+
+        validationResult.IsValid.Should().BeTrue();
+        validationResult.Claims["sub"].Should().Be("user-sub-456");
+        validationResult.Claims.Should().NotContainKey("preferred_username");
+    }
 }
