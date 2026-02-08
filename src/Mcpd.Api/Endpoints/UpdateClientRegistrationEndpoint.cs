@@ -13,8 +13,7 @@ public sealed class UpdateClientRegistrationRequest
     public string[] RedirectUris { get; set; } = [];
     public string[] GrantTypes { get; set; } = ["client_credentials"];
     public string TokenEndpointAuthMethod { get; set; } = "client_secret_post";
-    public Guid[]? AdditionalServerIds { get; set; }
-    public Dictionary<Guid, string[]>? AdditionalScopes { get; set; }
+    public string[] Scope { get; set; } = [];
 }
 
 public sealed class UpdateClientRegistrationEndpoint(IMediator mediator)
@@ -36,8 +35,7 @@ public sealed class UpdateClientRegistrationEndpoint(IMediator mediator)
             req.RedirectUris,
             req.GrantTypes,
             req.TokenEndpointAuthMethod,
-            req.AdditionalServerIds,
-            req.AdditionalScopes);
+            req.Scope);
 
         try
         {

@@ -1,5 +1,4 @@
 using System.Security.Cryptography;
-using System.Text;
 using Mcpd.Application.Interfaces;
 using Mcpd.Infrastructure.Configuration;
 using Microsoft.Extensions.Options;
@@ -8,7 +7,7 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace Mcpd.Infrastructure.Services;
 
-public sealed class JwtTokenGenerator(IOptions<McpdOptions> options) : ITokenGenerator
+public sealed class JwtTokenGenerator(IOptions<McpdOptions> options, SigningKeyManager signingKeyManager) : ITokenGenerator
 {
     private readonly McpdOptions _options = options.Value;
 
@@ -21,22 +20,22 @@ public sealed class JwtTokenGenerator(IOptions<McpdOptions> options) : ITokenGen
     public string GenerateRegistrationAccessToken() =>
         Base64UrlEncode(RandomNumberGenerator.GetBytes(32));
 
-    public string GenerateAccessToken(string clientId, Guid serverId, string serverName, string[] scopes, TimeSpan lifetime)
+    public string GenerateAccessToken(string clientId, string[] scopes, TimeSpan lifetime, string? audience)
     {
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.TokenSigningKey));
-        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var credentials = signingKeyManager.GetSigningCredentials();
+
+        var claims = new List<System.Security.Claims.Claim>
+        {
+            new("sub", clientId),
+            new("scope", string.Join(' ', scopes)),
+            new("jti", Guid.NewGuid().ToString()),
+        };
 
         var descriptor = new SecurityTokenDescriptor
         {
             Issuer = _options.Issuer,
-            Audience = serverName,
-            Subject = new System.Security.Claims.ClaimsIdentity(
-            [
-                new("sub", clientId),
-                new("server_id", serverId.ToString()),
-                new("scope", string.Join(' ', scopes)),
-                new("jti", Guid.NewGuid().ToString()),
-            ]),
+            Audience = audience,
+            Subject = new System.Security.Claims.ClaimsIdentity(claims),
             IssuedAt = DateTime.UtcNow,
             Expires = DateTime.UtcNow.Add(lifetime),
             SigningCredentials = credentials

@@ -35,14 +35,6 @@ public sealed class RegisterClientCommandValidatorTests
     }
 
     [Fact]
-    public void Empty_RequestedServerIds_Fails()
-    {
-        var command = CreateValidCommand() with { RequestedServerIds = [] };
-        var result = _validator.Validate(command);
-        result.IsValid.Should().BeFalse();
-    }
-
-    [Fact]
     public void Empty_RedirectUris_Fails()
     {
         var command = CreateValidCommand() with { RedirectUris = [] };
@@ -123,6 +115,5 @@ public sealed class RegisterClientCommandValidatorTests
         ["https://example.com/callback"],
         ["client_credentials"],
         "client_secret_post",
-        [Guid.NewGuid()],
-        new Dictionary<Guid, string[]>());
+        ["read", "write"]);
 }

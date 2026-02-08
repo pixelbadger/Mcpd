@@ -13,7 +13,7 @@ public sealed class ClientRegistrationTests
         var reg = new ClientRegistration(
             "client-123", "hashed-secret", "Test Client",
             "client_secret_post", ["client_credentials"],
-            ["https://example.com/callback"], "hashed-rat");
+            ["https://example.com/callback"], "hashed-rat", ["read", "write"]);
 
         reg.ClientId.Should().Be("client-123");
         reg.ClientName.Should().Be("Test Client");
@@ -21,6 +21,7 @@ public sealed class ClientRegistrationTests
         reg.TokenEndpointAuthMethod.Should().Be("client_secret_post");
         reg.GrantTypes.Should().ContainSingle("client_credentials");
         reg.RedirectUris.Should().ContainSingle("https://example.com/callback");
+        reg.Scope.Should().BeEquivalentTo(["read", "write"]);
         reg.RegistrationAccessToken.Should().Be("hashed-rat");
         reg.Id.Should().NotBeEmpty();
         reg.CreatedAt.Should().BeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromSeconds(5));
@@ -60,15 +61,16 @@ public sealed class ClientRegistrationTests
     {
         var reg = CreateActiveRegistration();
 
-        reg.UpdateMetadata("New Name", ["https://new.com/cb"], "client_secret_basic", ["client_credentials"]);
+        reg.UpdateMetadata("New Name", ["https://new.com/cb"], "client_secret_basic", ["client_credentials"], ["admin"]);
 
         reg.ClientName.Should().Be("New Name");
         reg.RedirectUris.Should().ContainSingle("https://new.com/cb");
         reg.TokenEndpointAuthMethod.Should().Be("client_secret_basic");
         reg.GrantTypes.Should().ContainSingle("client_credentials");
+        reg.Scope.Should().ContainSingle("admin");
     }
 
     private static ClientRegistration CreateActiveRegistration() =>
         new("client-1", "hash", "Test", "client_secret_post",
-            ["client_credentials"], ["https://example.com/cb"], "rat-hash");
+            ["client_credentials"], ["https://example.com/cb"], "rat-hash", ["read"]);
 }

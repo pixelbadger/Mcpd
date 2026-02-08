@@ -12,8 +12,7 @@ public sealed class RegisterClientRequest
     public string[] RedirectUris { get; set; } = [];
     public string[] GrantTypes { get; set; } = ["client_credentials"];
     public string TokenEndpointAuthMethod { get; set; } = "client_secret_post";
-    public Guid[] RequestedServerIds { get; set; } = [];
-    public Dictionary<Guid, string[]> RequestedScopes { get; set; } = new();
+    public string[] Scope { get; set; } = [];
 }
 
 public sealed class RegisterClientEndpoint(IMediator mediator) : Endpoint<RegisterClientRequest, ClientRegistrationResponse>
@@ -32,8 +31,7 @@ public sealed class RegisterClientEndpoint(IMediator mediator) : Endpoint<Regist
             req.RedirectUris,
             req.GrantTypes,
             req.TokenEndpointAuthMethod,
-            req.RequestedServerIds,
-            req.RequestedScopes);
+            req.Scope);
 
         var validator = new RegisterClientCommandValidator();
         var validationResult = await validator.ValidateAsync(command, ct);
@@ -50,11 +48,6 @@ public sealed class RegisterClientEndpoint(IMediator mediator) : Endpoint<Regist
         {
             var response = await mediator.Send(command, ct);
             await SendAsync(response, 201, ct);
-        }
-        catch (InvalidOperationException ex) when (ex.Message.StartsWith("invalid_redirect_uri"))
-        {
-            AddError(ex.Message);
-            await SendErrorsAsync(400, ct);
         }
         catch (InvalidOperationException ex)
         {
