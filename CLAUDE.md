@@ -22,8 +22,8 @@ Clean Architecture with four projects under `src/`:
 Mcpd.sln
 |- src/
 |  |- Mcpd.Domain/          # Entities, value objects, interfaces
-|  |- Mcpd.Application/     # Commands, queries, validators, contracts
-|  |- Mcpd.Infrastructure/  # EF Core, hashing, token services
+|  |- Mcpd.Application/     # Commands, queries, validators, contracts, components
+|  |- Mcpd.Infrastructure/  # External adapters (EF Core persistence)
 |  `- Mcpd.Api/             # FastEndpoints API and preprocessors
 `- tests/
    |- Mcpd.Domain.Tests/
@@ -32,11 +32,12 @@ Mcpd.sln
    `- Mcpd.Api.Tests/
 ```
 
-Dependency flow:
+Dependency flow (project references):
 
-- `Api -> Application -> Domain`
-- `Infrastructure -> Application -> Domain`
-- `Domain` depends on nothing.
+- `Mcpd.Domain` depends on nothing.
+- `Mcpd.Application -> Mcpd.Domain`
+- `Mcpd.Infrastructure -> Mcpd.Domain` (repository implementations)
+- `Mcpd.Api -> Mcpd.Application` and `Mcpd.Api -> Mcpd.Infrastructure`
 
 ## Domain Layer (`Mcpd.Domain`)
 
@@ -122,7 +123,9 @@ public interface IAuditLogRepository
 
 Uses source-generated Mediator with CQRS-style records and handlers.
 
-### Service Interfaces
+### Components
+
+Component interfaces and concrete implementations live together in Application.
 
 ```csharp
 public interface ISecretHasher
@@ -139,6 +142,10 @@ public interface ITokenGenerator
     string GenerateAccessToken(string clientId, string[] scopes, TimeSpan lifetime, string? audience);
 }
 ```
+
+- `Argon2SecretHasher` (implements `ISecretHasher`)
+- `JwtTokenGenerator` (implements `ITokenGenerator`)
+- `SigningKeyManager` (RSA key management + JWKS materialization)
 
 ### Commands
 
@@ -200,6 +207,8 @@ public sealed record TokenErrorResponse(
 
 ## Infrastructure Layer (`Mcpd.Infrastructure`)
 
+Infrastructure is reserved for external-system adapters. In this codebase, that currently means EF Core persistence and repository implementations of Domain contracts consumed by Application.
+
 ### Persistence
 
 `McpdDbContext` currently has:
@@ -216,20 +225,6 @@ Entity configurations:
 - unique index on `ClientRegistration.ClientId`
 - array conversions for `GrantTypes`, `RedirectUris`, and `Scope`
 - audit log index on `Timestamp`
-
-### Secret Hashing
-
-- `Argon2SecretHasher` uses `Konscious.Security.Cryptography.Argon2`.
-- Hash format: `$argon2id$<salt-base64>$<hash-base64>`.
-
-### Token Generation and Signing
-
-- `JwtTokenGenerator` issues JWT access tokens with `sub`, `scope`, and `jti` claims.
-- Signing uses RSA (`RS256`) via `SigningKeyManager`.
-- Public keys are exposed as JWK through a well-known endpoint.
-- Signing key source:
-  - generated in-memory RSA key by default, or
-  - loaded from PEM file when `Mcpd:SigningKeyPath` is set.
 
 ## API Layer (`Mcpd.Api`)
 
@@ -327,8 +322,8 @@ Bound via `IOptions<McpdOptions>` and `IOptions<RateLimitingOptions>`.
 Test projects cover:
 
 - Domain entity and value object behavior
-- Application validator and token-validation rules
-- Infrastructure hashing and JWT signing behavior
+- Application validator, token-validation rules, and crypto/JWT components
+- Infrastructure persistence behavior
 - API integration flows, registration access token checks, secret rotation, and well-known metadata endpoints
 
 Use:

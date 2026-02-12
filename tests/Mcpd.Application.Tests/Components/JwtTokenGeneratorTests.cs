@@ -1,12 +1,12 @@
 using FluentAssertions;
-using Mcpd.Infrastructure.Configuration;
+using Mcpd.Application.Components;
+using Mcpd.Application.Configuration;
 using Xunit;
-using Mcpd.Infrastructure.Services;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 
-namespace Mcpd.Infrastructure.Tests.Services;
+namespace Mcpd.Application.Tests.Components;
 
 public sealed class JwtTokenGeneratorTests : IDisposable
 {

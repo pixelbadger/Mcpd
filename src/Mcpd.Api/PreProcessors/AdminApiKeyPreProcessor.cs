@@ -1,5 +1,5 @@
 using FastEndpoints;
-using Mcpd.Infrastructure.Configuration;
+using Mcpd.Application.Configuration;
 using Microsoft.Extensions.Options;
 
 namespace Mcpd.Api.PreProcessors;

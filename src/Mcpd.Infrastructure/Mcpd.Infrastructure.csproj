@@ -8,13 +8,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Mcpd.Application\Mcpd.Application.csproj" />
+    <ProjectReference Include="..\Mcpd.Domain\Mcpd.Domain.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.*" />
-    <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.*" />
-    <PackageReference Include="Konscious.Security.Cryptography.Argon2" Version="1.*" />
   </ItemGroup>
 
 </Project>
