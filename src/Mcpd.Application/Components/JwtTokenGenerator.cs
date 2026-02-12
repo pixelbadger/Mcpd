@@ -1,11 +1,10 @@
 using System.Security.Cryptography;
-using Mcpd.Application.Interfaces;
-using Mcpd.Infrastructure.Configuration;
+using Mcpd.Application.Configuration;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 
-namespace Mcpd.Infrastructure.Services;
+namespace Mcpd.Application.Components;
 
 public sealed class JwtTokenGenerator(IOptions<McpdOptions> options, SigningKeyManager signingKeyManager) : ITokenGenerator
 {

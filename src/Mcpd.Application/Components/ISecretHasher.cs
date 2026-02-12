@@ -1,6 +1,6 @@
 using Mcpd.Domain.ValueObjects;
 
-namespace Mcpd.Application.Interfaces;
+namespace Mcpd.Application.Components;
 
 public interface ISecretHasher
 {

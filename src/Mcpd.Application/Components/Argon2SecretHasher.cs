@@ -1,10 +1,9 @@
 using System.Security.Cryptography;
 using System.Text;
 using Konscious.Security.Cryptography;
-using Mcpd.Application.Interfaces;
 using Mcpd.Domain.ValueObjects;
 
-namespace Mcpd.Infrastructure.Services;
+namespace Mcpd.Application.Components;
 
 public sealed class Argon2SecretHasher : ISecretHasher
 {

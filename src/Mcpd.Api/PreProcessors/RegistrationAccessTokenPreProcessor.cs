@@ -1,5 +1,5 @@
 using FastEndpoints;
-using Mcpd.Application.Interfaces;
+using Mcpd.Application.Components;
 using Mcpd.Domain.Enums;
 using Mcpd.Domain.Interfaces;
 using Mcpd.Domain.ValueObjects;

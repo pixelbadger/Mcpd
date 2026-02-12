@@ -1,4 +1,4 @@
-namespace Mcpd.Infrastructure.Configuration;
+namespace Mcpd.Application.Configuration;
 
 public sealed class McpdOptions
 {

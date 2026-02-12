@@ -1,4 +1,4 @@
-namespace Mcpd.Infrastructure.Configuration;
+namespace Mcpd.Api.Configuration;
 
 public sealed class RateLimitingOptions
 {

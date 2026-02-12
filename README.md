@@ -15,15 +15,17 @@ Clean Architecture with four projects:
 ```
 src/
 |- Mcpd.Domain/            # Entities, value objects, interfaces
-|- Mcpd.Application/       # Commands, queries, validators, contracts
-|- Mcpd.Infrastructure/    # EF Core, Argon2 hasher, JWT signing
+|- Mcpd.Application/       # Use cases + in-process component interfaces/implementations
+|- Mcpd.Infrastructure/    # External adapters (EF Core persistence repositories)
 `- Mcpd.Api/               # FastEndpoints API + preprocessors
 ```
 
 Dependency flow:
 
-- `Mcpd.Api -> Mcpd.Application -> Mcpd.Domain`
-- `Mcpd.Infrastructure -> Mcpd.Application -> Mcpd.Domain`
+- `Mcpd.Domain` has no project references.
+- `Mcpd.Application -> Mcpd.Domain`
+- `Mcpd.Infrastructure -> Mcpd.Domain` (repository implementations consumed by Application via Domain contracts)
+- `Mcpd.Api -> Mcpd.Application` and `Mcpd.Api -> Mcpd.Infrastructure`
 
 Stack:
 

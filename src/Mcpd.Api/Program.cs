@@ -1,12 +1,12 @@
 using System.Text.Json;
 using System.Threading.RateLimiting;
 using FastEndpoints;
-using Mcpd.Application.Interfaces;
+using Mcpd.Api.Configuration;
+using Mcpd.Application.Components;
+using Mcpd.Application.Configuration;
 using Mcpd.Domain.Interfaces;
-using Mcpd.Infrastructure.Configuration;
 using Mcpd.Infrastructure.Persistence;
 using Mcpd.Infrastructure.Persistence.Repositories;
-using Mcpd.Infrastructure.Services;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;

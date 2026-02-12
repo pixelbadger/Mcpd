@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using Microsoft.IdentityModel.Tokens;
 
-namespace Mcpd.Infrastructure.Services;
+namespace Mcpd.Application.Components;
 
 public sealed class SigningKeyManager : IDisposable
 {

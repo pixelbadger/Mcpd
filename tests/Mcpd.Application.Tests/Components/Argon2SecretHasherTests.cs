@@ -1,8 +1,8 @@
 using FluentAssertions;
-using Mcpd.Infrastructure.Services;
+using Mcpd.Application.Components;
 using Xunit;
 
-namespace Mcpd.Infrastructure.Tests.Services;
+namespace Mcpd.Application.Tests.Components;
 
 public sealed class Argon2SecretHasherTests
 {

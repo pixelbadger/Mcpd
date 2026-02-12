@@ -1,4 +1,4 @@
-namespace Mcpd.Application.Interfaces;
+namespace Mcpd.Application.Components;
 
 public interface ITokenGenerator
 {
